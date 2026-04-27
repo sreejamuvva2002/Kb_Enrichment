@@ -1,0 +1,274 @@
+[
+  {
+    "url": "https://www.georgia.org/press-release/",
+    "source_name": "Georgia.org Press Releases",
+    "category": "Government",
+    "sub_category": "Press Releases",
+    "url_type": "hub",
+    "priority": 1,
+    "always_process": true,
+    "description": "Georgia.org statewide press release hub."
+  },
+  {
+    "url": "https://www.selectgeorgia.com/discover-georgia/industries/EV-ecosystem-in-georgia/",
+    "source_name": "SelectGeorgia EV Ecosystem",
+    "category": "Economic Development",
+    "sub_category": "EV Ecosystem",
+    "url_type": "hub",
+    "priority": 1,
+    "always_process": true,
+    "description": "SelectGeorgia EV ecosystem landing page."
+  },
+  {
+    "url": "https://gov.georgia.gov/press-releases",
+    "source_name": "Governor Press Releases",
+    "category": "Government",
+    "sub_category": "Press Releases",
+    "url_type": "hub",
+    "priority": 1,
+    "always_process": true,
+    "description": "Governor of Georgia press release hub."
+  },
+  {
+    "url": "https://www.savannahjda.com/announced-hmgma-suppliers/",
+    "source_name": "Savannah JDA HMGMA Suppliers",
+    "category": "Regional Development",
+    "sub_category": "Supplier Hub",
+    "url_type": "hub",
+    "priority": 1,
+    "always_process": true,
+    "description": "Hub page for announced Hyundai Metaplant suppliers."
+  },
+  {
+    "url": "https://www.kiageorgia.com/category/news/",
+    "source_name": "Kia Georgia News",
+    "category": "OEM",
+    "sub_category": "News",
+    "url_type": "hub",
+    "priority": 1,
+    "always_process": true,
+    "description": "Kia Georgia news archive."
+  },
+  {
+    "url": "https://hmgma.com",
+    "source_name": "Hyundai Metaplant Georgia",
+    "category": "OEM",
+    "sub_category": "Corporate Site",
+    "url_type": "hub",
+    "priority": 1,
+    "always_process": true,
+    "description": "Hyundai Metaplant Georgia homepage."
+  },
+  {
+    "url": "https://emobility.uga.edu/",
+    "source_name": "UGA eMobility",
+    "category": "Research",
+    "sub_category": "Program Site",
+    "url_type": "hub",
+    "priority": 1,
+    "always_process": true,
+    "description": "University of Georgia eMobility research hub."
+  },
+  {
+    "url": "https://www.energy.gov/cmei/manufacturing/battery-manufacturing-and-recycling-grants",
+    "source_name": "DOE Battery Grants",
+    "category": "Federal",
+    "sub_category": "Funding Hub",
+    "url_type": "hub",
+    "priority": 1,
+    "always_process": true,
+    "description": "DOE battery manufacturing and recycling grants page."
+  },
+  {
+    "url": "https://georgia.org/competitive-advantages/key-industries/electric-mobility",
+    "source_name": "Georgia Electric Mobility",
+    "category": "Government",
+    "sub_category": "Industry Page",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Georgia electric mobility industry overview."
+  },
+  {
+    "url": "https://gefa.georgia.gov",
+    "source_name": "GEFA",
+    "category": "Government",
+    "sub_category": "Agency Site",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Georgia Environmental Finance Authority site."
+  },
+  {
+    "url": "https://www.gaports.com",
+    "source_name": "Georgia Ports Authority",
+    "category": "Infrastructure",
+    "sub_category": "Ports",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Georgia Ports Authority site."
+  },
+  {
+    "url": "https://gisdata.georgia.gov",
+    "source_name": "Georgia GIS Data",
+    "category": "Government",
+    "sub_category": "GIS",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Georgia GIS data portal."
+  },
+  {
+    "url": "https://afdc.energy.gov",
+    "source_name": "AFDC",
+    "category": "Federal",
+    "sub_category": "Energy Data",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Alternative Fuels Data Center."
+  },
+  {
+    "url": "https://www.energy.gov/lpo/portfolio-projects",
+    "source_name": "DOE LPO Portfolio",
+    "category": "Federal",
+    "sub_category": "Loans",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "DOE Loan Programs Office portfolio projects."
+  },
+  {
+    "url": "https://www.autonews.com",
+    "source_name": "Automotive News",
+    "category": "Media",
+    "sub_category": "Industry News",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Automotive News publication."
+  },
+  {
+    "url": "https://gscx.gamep.org",
+    "source_name": "Georgia Supplier Connection",
+    "category": "Industry",
+    "sub_category": "Supplier Exchange",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Georgia supplier exchange portal."
+  },
+  {
+    "url": "https://patents.google.com",
+    "source_name": "Google Patents",
+    "category": "Research",
+    "sub_category": "Patents",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Patent search portal."
+  },
+  {
+    "url": "https://www.importyeti.com",
+    "source_name": "ImportYeti",
+    "category": "Trade Data",
+    "sub_category": "Imports",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Import trade intelligence portal."
+  },
+  {
+    "url": "https://www.marklines.com/en/supplier_db",
+    "source_name": "MarkLines Supplier Database",
+    "category": "Industry",
+    "sub_category": "Supplier Database",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "MarkLines supplier database."
+  },
+  {
+    "url": "https://skon.co",
+    "source_name": "SK On",
+    "category": "Battery",
+    "sub_category": "Corporate Site",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "SK On corporate website."
+  },
+  {
+    "url": "https://www.bryancountyga.org/economic-development",
+    "source_name": "Bryan County Economic Development",
+    "category": "Regional Development",
+    "sub_category": "Economic Development",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Bryan County economic development page."
+  },
+  {
+    "url": "https://www.georgiapower.com/business/business-solutions/growth-and-investment/economic-development/automotive-industry.html",
+    "source_name": "Georgia Power Automotive Industry",
+    "category": "Utility",
+    "sub_category": "Economic Development",
+    "url_type": "document",
+    "priority": 1,
+    "always_process": true,
+    "description": "Georgia Power automotive industry page."
+  },
+  {
+    "url": "https://echo.epa.gov/facilities/facility-search",
+    "source_name": "EPA ECHO Facility Search",
+    "category": "Regulatory",
+    "sub_category": "Facility Search",
+    "url_type": "search_portal",
+    "priority": 1,
+    "always_process": true,
+    "description": "EPA ECHO search portal for Georgia facilities.",
+    "search_portal_queries": [
+      "https://echo.epa.gov/facilities/facility-search?p_fn=[COMPANY]&p_st=GA"
+    ]
+  },
+  {
+    "url": "https://www.sec.gov/cgi-bin/browse-edgar",
+    "source_name": "SEC EDGAR Search",
+    "category": "Regulatory",
+    "sub_category": "SEC Search",
+    "url_type": "search_portal",
+    "priority": 1,
+    "always_process": true,
+    "description": "SEC EDGAR search for Georgia company filings.",
+    "search_portal_queries": [
+      "https://efts.sec.gov/LATEST/search-index?q=%22[COMPANY]%22+%22Georgia%22&dateRange=custom&startdt=2020-01-01&forms=10-K,8-K"
+    ]
+  },
+  {
+    "url": "https://www.usaspending.gov/recipient",
+    "source_name": "USAspending Recipient Search",
+    "category": "Federal",
+    "sub_category": "Recipient Search",
+    "url_type": "search_portal",
+    "priority": 1,
+    "always_process": true,
+    "description": "USAspending recipient search for awards by company.",
+    "search_portal_queries": [
+      "https://api.usaspending.gov/api/v2/recipient/?keyword=[COMPANY]&page=1&limit=25"
+    ]
+  },
+  {
+    "url": "https://permitsearch.gaepd.org",
+    "source_name": "Georgia EPD Permit Search",
+    "category": "Regulatory",
+    "sub_category": "Permit Search",
+    "url_type": "search_portal",
+    "priority": 1,
+    "always_process": true,
+    "description": "Georgia EPD permit search portal.",
+    "search_portal_queries": [
+      "https://permitsearch.gaepd.org/PermitSearch.aspx?name=[COMPANY]&county=&status=Active"
+    ]
+  }
+]

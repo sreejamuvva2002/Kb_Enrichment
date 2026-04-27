@@ -1,0 +1,23 @@
+default_domain_delay: 2.0
+ddg_query_delay: 3.0
+ddg_backend: "duckduckgo"
+ddg_region: "us-en"
+ddg_max_results_high_value_families: 20
+ddg_max_results_standard_families: 10
+max_concurrent_downloads: 2
+download_batch_size: 10
+max_file_size_mb: 50
+max_retries: 3
+retry_delay_seconds: 10
+query_convergence_consecutive_runs: 2
+project_convergence_threshold_pct: 2.0
+pilot_companies: 10
+user_agent: "GeorgiaEV-KB-Builder/1.0 Research Project"
+checkpoint_every_n_companies: 5
+hub_link_extraction_depth: 1
+relevance_min_score: 0.1
+minimum_run_gap_converged_days: 7
+minimum_run_gap_unconverged_days: 1
+minimum_run_gap_seed_days: 30
+low_yield_ratio_threshold: 0.05
+low_yield_min_runs_before_flag: 3

@@ -1,0 +1,15 @@
+storage_backend: "backblaze_b2"
+s3_compatible: true
+upload_after_download: true
+verify_upload: true
+local_retention_policy: "keep"
+cloud_prefix: "georgia_ev/raw"
+default_presigned_url_expiry_seconds: 3600
+
+bucket_name_env: "B2_BUCKET_NAME"
+endpoint_url_env: "B2_ENDPOINT_URL"
+region_name_env: "B2_REGION"
+access_key_env: "B2_ACCESS_KEY_ID"
+secret_key_env: "B2_SECRET_ACCESS_KEY"
+
+object_key_pattern: "{cloud_prefix}/{file_type}/{doc_id}_{company_slug}_{domain_slug}_{hash8}.{ext}"

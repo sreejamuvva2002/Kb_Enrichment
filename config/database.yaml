@@ -1,0 +1,6 @@
+metadata_db_backend: "postgres"
+database_url_env: "DATABASE_URL"
+sqlite_fallback_path: "data/metadata/url_registry.db"
+duckdb_export_enabled: false
+duckdb_export_path: "data/metadata/analytics.duckdb"
+run_migrations_on_start: true
