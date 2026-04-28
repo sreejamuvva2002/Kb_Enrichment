@@ -266,7 +266,8 @@
     "url_type": "search_portal",
     "priority": 1,
     "always_process": true,
-    "description": "Georgia EPD permit search portal.",
+    "enabled": false,
+    "description": "Georgia EPD permit search portal. Disabled until a working parameterized search pattern is validated.",
     "search_portal_queries": [
       "https://permitsearch.gaepd.org/PermitSearch.aspx?name=[COMPANY]&county=&status=Active"
     ]

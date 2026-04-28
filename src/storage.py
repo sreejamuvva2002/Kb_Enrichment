@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import unicodedata
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -35,6 +36,15 @@ def _slugify_domain(url: str) -> str:
     cleaned = "".join(ch for ch in cleaned if ch.isalnum() or ch == "_")
     cleaned = cleaned.strip("_") or "unknown"
     return cleaned[:20]
+
+
+def _sanitize_metadata(metadata: dict[str, str] | None) -> dict[str, str]:
+    sanitized: dict[str, str] = {}
+    for key, value in (metadata or {}).items():
+        text = "" if value is None else str(value)
+        normalized = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+        sanitized[str(key)] = normalized
+    return sanitized
 
 
 class StorageManager:
@@ -83,7 +93,7 @@ class StorageManager:
     def upload_file(self, local_path: str | Path, object_key: str, metadata: dict[str, str] | None = None) -> dict[str, Any]:
         client = self.get_storage_client()
         path = Path(local_path)
-        extra_args = {"Metadata": metadata or {}}
+        extra_args = {"Metadata": _sanitize_metadata(metadata)}
         client.upload_file(str(path), self.bucket_name(), object_key, ExtraArgs=extra_args)
         head = client.head_object(Bucket=self.bucket_name(), Key=object_key)
         return {
@@ -101,7 +111,12 @@ class StorageManager:
 
     def upload_bytes(self, content: bytes, object_key: str, metadata: dict[str, str] | None = None) -> dict[str, Any]:
         client = self.get_storage_client()
-        response = client.put_object(Bucket=self.bucket_name(), Key=object_key, Body=content, Metadata=metadata or {})
+        response = client.put_object(
+            Bucket=self.bucket_name(),
+            Key=object_key,
+            Body=content,
+            Metadata=_sanitize_metadata(metadata),
+        )
         head = client.head_object(Bucket=self.bucket_name(), Key=object_key)
         return {
             "storage_backend": self.config["storage_backend"],

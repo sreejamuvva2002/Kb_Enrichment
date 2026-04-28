@@ -19,3 +19,4 @@ data/processed/**
 !data/processed/.gitkeep
 
 GNEM_final_data.xlsx
+archives/

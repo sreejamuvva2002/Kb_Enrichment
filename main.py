@@ -58,6 +58,7 @@ def parse_args() -> argparse.Namespace:
         ],
     )
     parser.add_argument("--company", help="Company name for single-company mode.")
+    parser.add_argument("--pilot-count", type=int, help="Override the configured pilot company count.")
     parser.add_argument("--run-id", help="Explicit run identifier.")
     parser.add_argument("--fresh-start", action="store_true", help="Ignore any existing checkpoint.")
     parser.add_argument("--doc-id", help="Document ID for retrieve-doc mode.")
@@ -180,6 +181,9 @@ def prepare_seed_entries(tracker: Tracker, companies: list[dict[str, Any]]) -> t
     downloadable: list[dict[str, Any]] = []
     search_portal_entries: list[dict[str, Any]] = []
     for seed in seed_urls:
+        if seed.get("enabled", True) is False:
+            LOGGER.info("Skipping disabled seed entry: %s", seed["source_name"])
+            continue
         if seed["url_type"] == "search_portal":
             for record in generate_search_portal_url_records(seed, companies):
                 tracker.add_url(
@@ -235,7 +239,8 @@ def prepare_seed_entries(tracker: Tracker, companies: list[dict[str, Any]]) -> t
 def selected_companies(mode: str, args: argparse.Namespace, settings: dict[str, Any]) -> list[dict[str, Any]]:
     companies = load_companies()
     if mode == "pilot":
-        return companies[: int(settings["pilot_companies"])]
+        pilot_count = args.pilot_count or int(settings["pilot_companies"])
+        return companies[: pilot_count]
     if mode == "single-company":
         if not args.company:
             raise ValueError("--company is required for single-company mode.")

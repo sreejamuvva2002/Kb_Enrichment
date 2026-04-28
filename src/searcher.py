@@ -230,6 +230,7 @@ def search_duckduckgo(query: str, max_results: int) -> list[dict[str, str]]:
     for attempt in range(1, 4):
         try:
             from ddgs import DDGS
+            from ddgs.exceptions import DDGSException, RatelimitException, TimeoutException
 
             results = DDGS().text(
                 query,
@@ -248,6 +249,15 @@ def search_duckduckgo(query: str, max_results: int) -> list[dict[str, str]]:
                 )
             LOGGER.info("DDG query complete: %s | results=%s", query, len(normalized_results))
             return normalized_results
+        except (RatelimitException, TimeoutException) as exc:
+            LOGGER.warning("DDG query failed (attempt %s): %s | %s", attempt, query, exc)
+            time.sleep(float(settings["ddg_query_delay"]) * (2 ** (attempt - 1)))
+        except DDGSException as exc:
+            if "no results found" in str(exc).lower():
+                LOGGER.info("DDG query complete: %s | results=0", query)
+                return []
+            LOGGER.warning("DDG query failed (attempt %s): %s | %s", attempt, query, exc)
+            time.sleep(float(settings["ddg_query_delay"]) * (2 ** (attempt - 1)))
         except Exception as exc:
             LOGGER.warning("DDG query failed (attempt %s): %s | %s", attempt, query, exc)
             time.sleep(float(settings["ddg_query_delay"]) * (2 ** (attempt - 1)))
@@ -294,6 +304,7 @@ def _run_query(tracker: Tracker, company_name: str, query: dict[str, Any], min_s
     results = search_duckduckgo(query["query_text"], int(query["max_results"]))
     new_urls = 0
     known_urls = 0
+    filtered_urls = 0
     discovered_urls: list[str] = []
     relevance_total = 0.0
     for result in results:
@@ -303,6 +314,11 @@ def _run_query(tracker: Tracker, company_name: str, query: dict[str, Any], min_s
         score = score_url_relevance(url, result["title"], result["snippet"])
         relevance_total += score
         blocked = is_blocked(url)
+        note_parts: list[str] = []
+        if blocked:
+            note_parts.append("Blocked by configured domain blocklist")
+        if score < min_score:
+            note_parts.append("Below relevance threshold")
         is_new = tracker.add_url(
             url,
             query["query_text"],
@@ -314,21 +330,33 @@ def _run_query(tracker: Tracker, company_name: str, query: dict[str, Any], min_s
             priority_domain=_is_priority_domain(url),
             source_backend="duckduckgo",
             url_type="document",
-            notes="Below relevance threshold" if score < min_score else None,
+            notes="; ".join(note_parts) if note_parts else None,
         )
         tracker.add_url_company_mapping(url, company_name, query["query_text"])
+        eligible_for_download = not blocked and score >= min_score
+        if not eligible_for_download:
+            if is_new:
+                filtered_urls += 1
+            else:
+                known_urls += 1
+            continue
         if is_new:
             new_urls += 1
+            discovered_urls.append(url)
+            continue
+        existing_record = tracker.get_url_record(url) or {}
+        if not existing_record.get("last_download_status"):
             discovered_urls.append(url)
         else:
             known_urls += 1
     avg_relevance = round(relevance_total / len(results), 4) if results else 0.0
     LOGGER.info(
-        "Query processed: %s | total=%s | new=%s | known=%s",
+        "Query processed: %s | total=%s | new=%s | known=%s | filtered=%s",
         query["query_text"],
         len(results),
         new_urls,
         known_urls,
+        filtered_urls,
     )
     tracker.update_query_convergence(
         company_name,
@@ -357,6 +385,7 @@ def _run_query(tracker: Tracker, company_name: str, query: dict[str, Any], min_s
         "urls_found": len(results),
         "new_urls": new_urls,
         "known_urls": known_urls,
+        "filtered_urls": filtered_urls,
         "avg_relevance": avg_relevance,
         "discovered_urls": discovered_urls,
     }
@@ -466,6 +495,8 @@ def collect_domain_wide(tracker: Tracker, run_id: str) -> dict[str, Any]:
 
 
 def _generate_search_portal_records(seed_entry: dict[str, Any], companies: list[dict[str, Any]]) -> list[dict[str, str]]:
+    if seed_entry.get("enabled", True) is False:
+        return []
     records: list[dict[str, str]] = []
     for company in companies:
         encoded_name = quote(company["company_name"], safe="")

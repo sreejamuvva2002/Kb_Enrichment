@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-import pandas as pd
 from sqlalchemy import func, select
 
 from src import CONFIG_DIR, REPO_ROOT, iso_now, load_yaml
