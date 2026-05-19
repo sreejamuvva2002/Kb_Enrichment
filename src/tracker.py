@@ -20,6 +20,8 @@ from src.db import (
     RunRecord,
     Url,
     UrlCompanyMap,
+    WebDocument,
+    WebDocumentCompanyLink,
     close_connection,
     get_database_backend,
     init_schema,
@@ -90,6 +92,8 @@ class Tracker:
                     "normalized_url",
                     "domain",
                     "url_type",
+                    "source_id",
+                    "company_id",
                     "doc_id",
                     "storage_backend",
                     "bucket_name",
@@ -104,12 +108,15 @@ class Tracker:
                     "local_file_exists",
                     "local_deleted_at",
                     "final_url",
+                    "canonical_url",
                     "was_redirected",
                     "http_status",
                     "source_backend",
                     "first_discovered_at",
                     "last_seen_at",
                     "discovered_by_query",
+                    "query_family",
+                    "query_stage",
                     "discovered_for_company",
                     "ddg_title",
                     "ddg_snippet",
@@ -127,9 +134,16 @@ class Tracker:
                     "file_path",
                     "file_size_mb",
                     "is_extracted",
+                    "processing_status",
                     "relevance_score",
+                    "confidence_score",
                     "priority_domain",
+                    "source_type",
+                    "source_priority",
+                    "retrieved_at",
+                    "published_date",
                     "blocked",
+                    "rejection_reason",
                     "notes",
                 ],
             )
@@ -155,12 +169,26 @@ class Tracker:
                 existing.discovered_for_company = company or existing.discovered_for_company
                 if extra.get("relevance_score") is not None:
                     existing.relevance_score = float(extra["relevance_score"])
+                if extra.get("confidence_score") is not None:
+                    existing.confidence_score = float(extra["confidence_score"])
                 if extra.get("blocked") is not None:
                     existing.blocked = bool(extra["blocked"])
                 if extra.get("priority_domain") is not None:
                     existing.priority_domain = bool(extra["priority_domain"])
                 if extra.get("url_type"):
                     existing.url_type = str(extra["url_type"])
+                for attr in [
+                    "company_id",
+                    "query_family",
+                    "query_stage",
+                    "source_type",
+                    "source_priority",
+                    "canonical_url",
+                    "published_date",
+                    "rejection_reason",
+                ]:
+                    if extra.get(attr) is not None:
+                        setattr(existing, attr, extra[attr])
                 if extra.get("notes"):
                     existing.notes = str(extra["notes"])
                 return False
@@ -170,25 +198,35 @@ class Tracker:
                 normalized_url=normalized,
                 domain=parts.netloc.lower(),
                 url_type=extra.get("url_type", "document"),
+                source_id=extra.get("source_id"),
+                company_id=extra.get("company_id"),
                 upload_status="Not Enabled",
                 local_file_exists=False,
                 was_redirected=False,
                 first_discovered_at=now,
                 last_seen_at=now,
                 discovered_by_query=query,
+                query_family=extra.get("query_family"),
+                query_stage=extra.get("query_stage"),
                 discovered_for_company=company,
                 ddg_title=ddg_title,
                 ddg_snippet=ddg_snippet,
+                canonical_url=extra.get("canonical_url"),
                 source_backend=extra.get("source_backend"),
                 relevance_score=float(extra["relevance_score"]) if extra.get("relevance_score") is not None else None,
+                confidence_score=float(extra["confidence_score"]) if extra.get("confidence_score") is not None else None,
                 priority_domain=bool(extra.get("priority_domain", False)),
+                source_type=extra.get("source_type"),
+                source_priority=extra.get("source_priority"),
+                published_date=extra.get("published_date"),
                 blocked=bool(extra.get("blocked", False)),
+                rejection_reason=extra.get("rejection_reason"),
                 notes=extra.get("notes"),
             )
             session.add(row)
             return True
 
-    def add_url_company_mapping(self, url: str, company: str | None, query: str | None) -> None:
+    def add_url_company_mapping(self, url: str, company: str | None, query: str | None, company_id: str | None = None) -> None:
         if not company:
             return
         with session_scope() as session:
@@ -199,6 +237,7 @@ class Tracker:
                 session.add(
                     UrlCompanyMap(
                         url=url,
+                        company_id=company_id,
                         company_name=company,
                         discovered_by_query=query,
                         discovered_at=iso_now(),
@@ -241,16 +280,25 @@ class Tracker:
             row.content_last_modified = last_modified
             row.etag = etag
             row.final_url = final_url
+            row.canonical_url = extra.get("canonical_url") or final_url
             row.was_redirected = was_redirected
             row.http_status = http_status
             row.source_backend = source_backend
             row.response_time_ms = response_time_ms
+            row.retrieved_at = iso_now()
+            row.processing_status = status
             row.local_retention_policy = local_retention_policy
             row.local_deleted_at = extra.get("local_deleted_at")
             row.local_file_exists = bool(extra.get("local_file_exists", False))
             row.duplicate_of_url = extra.get("duplicate_of_url")
             row.is_duplicate = bool(extra.get("is_duplicate", False))
+            if extra.get("rejection_reason"):
+                row.rejection_reason = extra.get("rejection_reason")
             row.notes = extra.get("notes", row.notes)
+            if extra.get("source_id"):
+                row.source_id = extra.get("source_id")
+            if extra.get("published_date"):
+                row.published_date = extra.get("published_date")
             if file_path:
                 row.file_extension = Path(file_path).suffix.lstrip(".") or row.file_extension
             elif content_type:
@@ -282,6 +330,8 @@ class Tracker:
                     )
                 elif fingerprint_row.first_url != url:
                     fingerprint_row.duplicate_count = int(fingerprint_row.duplicate_count or 0) + 1
+            if doc_id and status in {"Downloaded", "Duplicate Content"}:
+                self._upsert_web_document_from_url_row(session, row)
 
     def mark_uploaded(self, url: str, upload_result: dict[str, Any]) -> None:
         with session_scope() as session:
@@ -305,6 +355,60 @@ class Tracker:
                     fingerprint_row.first_bucket_name = fingerprint_row.first_bucket_name or row.bucket_name
                     fingerprint_row.first_object_key = fingerprint_row.first_object_key or row.object_key
                     fingerprint_row.first_cloud_uri = fingerprint_row.first_cloud_uri or row.cloud_uri
+            if row.doc_id and row.last_download_status in {"Downloaded", "Duplicate Content", "Already Exists"}:
+                self._upsert_web_document_from_url_row(session, row)
+
+    def _upsert_web_document_from_url_row(self, session, row: Url) -> None:
+        source_id = row.source_id or row.doc_id
+        if not source_id:
+            return
+        document = session.get(WebDocument, source_id)
+        if document is None:
+            document = WebDocument(source_id=source_id, source_url=row.url)
+            session.add(document)
+        document.doc_id = row.doc_id
+        document.source_url = row.url
+        document.final_url = row.final_url
+        document.canonical_url = row.canonical_url or row.final_url or row.normalized_url
+        document.domain = row.domain
+        document.query_used = row.discovered_by_query
+        document.query_family = row.query_family
+        document.query_stage = row.query_stage
+        document.source_type = row.source_type
+        document.source_priority = row.source_priority
+        document.retrieved_at = row.retrieved_at or row.last_download_at
+        document.published_date = row.published_date
+        document.content_type = row.content_type_detected
+        document.file_type = row.file_extension
+        document.file_size_mb = row.file_size_mb
+        document.content_hash = row.content_fingerprint
+        document.b2_bucket = row.bucket_name
+        document.b2_object_key = row.object_key
+        document.b2_uri = row.cloud_uri
+        document.processing_status = row.processing_status or row.last_download_status
+        document.relevance_score = row.relevance_score
+        document.confidence_score = row.confidence_score
+        document.rejection_reason = row.rejection_reason
+        document.updated_at = iso_now()
+        if row.discovered_for_company:
+            existing_link = session.scalar(
+                select(WebDocumentCompanyLink).where(
+                    WebDocumentCompanyLink.source_id == source_id,
+                    WebDocumentCompanyLink.company_name == row.discovered_for_company,
+                )
+            )
+            if existing_link is None:
+                session.add(
+                    WebDocumentCompanyLink(
+                        source_id=source_id,
+                        company_id=row.company_id,
+                        company_name=row.discovered_for_company,
+                        confidence_score=row.confidence_score,
+                    )
+                )
+            else:
+                existing_link.company_id = row.company_id or existing_link.company_id
+                existing_link.confidence_score = row.confidence_score or existing_link.confidence_score
 
     def is_known(self, url: str) -> bool:
         with session_scope() as session:
@@ -371,6 +475,8 @@ class Tracker:
             for table_name in [
                 "urls",
                 "url_company_map",
+                "web_documents",
+                "web_document_company_links",
                 "query_convergence",
                 "query_performance",
                 "company_convergence",
@@ -398,7 +504,7 @@ class Tracker:
         self,
         company: str | dict[str, Any],
         query: str,
-        query_family: int,
+        query_family: int | str | None,
         temporal_variant: str | None,
         query_set_hash: str,
         new_url_count: int,
@@ -418,7 +524,7 @@ class Tracker:
                 row = QueryConvergence(
                     company_name=company_name,
                     query_text=query,
-                    query_family=query_family,
+                    query_family=str(query_family) if query_family is not None else None,
                     temporal_variant=temporal_variant,
                     query_set_hash=query_set_hash,
                 )
@@ -428,7 +534,7 @@ class Tracker:
                 row.consecutive_no_new = 0
                 row.is_converged = False
                 row.query_set_hash = query_set_hash
-            row.query_family = query_family
+            row.query_family = str(query_family) if query_family is not None else None
             row.temporal_variant = temporal_variant
             row.query_set_hash = query_set_hash
             row.total_runs = int(row.total_runs or 0) + 1
@@ -444,7 +550,7 @@ class Tracker:
         self,
         company: str | dict[str, Any],
         query: str,
-        query_family: int,
+        query_family: int | str | None,
         urls_found: int,
         new_urls: int,
         avg_relevance: float,
@@ -462,11 +568,15 @@ class Tracker:
                 )
             )
             if row is None:
-                row = QueryPerformance(company_name=company_name, query_text=query, query_family=query_family)
+                row = QueryPerformance(
+                    company_name=company_name,
+                    query_text=query,
+                    query_family=str(query_family) if query_family is not None else None,
+                )
                 session.add(row)
             previous_runs = int(row.run_count or 0)
             weighted_relevance = float(row.avg_relevance_score or 0.0) * previous_runs
-            row.query_family = query_family
+            row.query_family = str(query_family) if query_family is not None else None
             row.run_count = previous_runs + 1
             row.total_urls_found = int(row.total_urls_found or 0) + urls_found
             row.total_new_urls_found = int(row.total_new_urls_found or 0) + new_urls

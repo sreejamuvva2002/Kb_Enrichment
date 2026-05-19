@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from src import CONFIG_DIR, RAW_DATA_DIR, iso_now, load_yaml
+from src.query_catalog import load_web_query_catalog
 from src.searcher import is_blocked
 from src.storage import StorageManager, load_storage_config
 from src.tracker import Tracker
@@ -236,7 +237,13 @@ class Downloader:
             }
         return None
 
-    def download_url(self, url: str, company_name: str | None, doc_id: str | None = None) -> dict[str, Any]:
+    def download_url(
+        self,
+        url: str,
+        company_name: str | None,
+        doc_id: str | None = None,
+        company_id: str | None = None,
+    ) -> dict[str, Any]:
         if is_blocked(url):
             result = {
                 "doc_id": doc_id or generate_doc_id(self.tracker),
@@ -288,6 +295,8 @@ class Downloader:
                 0,
                 self.storage_config["local_retention_policy"],
                 local_file_exists=False,
+                source_id=result["doc_id"],
+                canonical_url=url,
                 notes=result["notes"],
                 is_duplicate=False,
             )
@@ -295,6 +304,8 @@ class Downloader:
         existing = self._existing_result(url, company_name)
         if existing is not None:
             return existing
+        record = self.tracker.get_url_record(url) or {}
+        effective_company_id = company_id or record.get("company_id")
         assigned_doc_id = doc_id or generate_doc_id(self.tracker)
         local_retention_policy = self.storage_config["local_retention_policy"]
         upload_status = "Not Enabled"
@@ -342,6 +353,8 @@ class Downloader:
             status = "Failed - Empty File"
         elif len(content) > int(self.settings["max_file_size_mb"]) * 1024 * 1024:
             status = "Failed - Too Large"
+        elif len(content) < int(load_web_query_catalog().get("minimum_content_bytes", 0)):
+            status = "Failed - Low Content"
         if status != "Downloaded":
             return self._failed_result(
                 url,
@@ -420,6 +433,8 @@ class Downloader:
                 local_retention_policy,
                 local_file_exists=False,
                 duplicate_of_url=str(duplicate_of_url),
+                source_id=assigned_doc_id,
+                canonical_url=final_url,
                 is_duplicate=True,
             )
             return result
@@ -436,11 +451,24 @@ class Downloader:
 
         if self.storage_config.get("upload_after_download", True):
             try:
-                object_key = self.storage.build_object_key(assigned_doc_id, company_name, url, extension)
+                object_key = self.storage.build_object_key(
+                    assigned_doc_id,
+                    company_name,
+                    url,
+                    extension,
+                    company_id=effective_company_id,
+                    content_hash=fingerprint,
+                )
                 upload_result = self.storage.upload_file(
                     local_path,
                     object_key,
-                    metadata={"doc_id": assigned_doc_id, "company_name": company_name or "", "source_url": url},
+                    metadata={
+                        "doc_id": assigned_doc_id,
+                        "company_id": effective_company_id or "",
+                        "company_name": company_name or "",
+                        "source_url": url,
+                        "content_hash": fingerprint,
+                    },
                 )
                 if self.storage_config.get("verify_upload", True):
                     verified = self.storage.verify_uploaded_object(object_key, local_path.stat().st_size)
@@ -495,6 +523,8 @@ class Downloader:
             local_retention_policy,
             local_file_exists=local_file_exists,
             local_deleted_at=local_deleted_at,
+            source_id=assigned_doc_id,
+            canonical_url=final_url,
             is_duplicate=False,
         )
         if upload_result:
@@ -598,6 +628,9 @@ class Downloader:
             response_time_ms,
             self.storage_config["local_retention_policy"],
             local_file_exists=False,
+            source_id=doc_id,
+            canonical_url=result["final_url"],
+            rejection_reason=status,
             notes=notes,
             is_duplicate=False,
         )

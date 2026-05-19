@@ -1,9 +1,23 @@
 default_domain_delay: 2.0
 ddg_query_delay: 3.0
+search_backend: "tavily"
+search_fallback_backend: "duckduckgo"
 ddg_backend: "duckduckgo"
 ddg_region: "us-en"
 ddg_max_results_high_value_families: 20
 ddg_max_results_standard_families: 10
+tavily_api_keys_env: "TAVILY_API_KEYS"
+tavily_api_key_env: "TAVILY_API_KEY"
+tavily_endpoint: "https://api.tavily.com/search"
+tavily_search_depth: "basic"
+tavily_topic: "general"
+tavily_country: "united states"
+tavily_max_results: 10
+tavily_timeout_seconds: 30
+tavily_key_cooldown_seconds: 3600
+tavily_include_answer: false
+tavily_include_raw_content: false
+tavily_include_usage: true
 max_concurrent_downloads: 2
 download_batch_size: 10
 max_file_size_mb: 50

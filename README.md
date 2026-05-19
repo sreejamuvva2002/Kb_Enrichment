@@ -32,6 +32,9 @@ Copy `.env.example` to `.env` and fill:
 - `B2_REGION`
 - `B2_ACCESS_KEY_ID`
 - `B2_SECRET_ACCESS_KEY`
+- `TAVILY_API_KEYS` as a comma-separated list, for example `tvly-key-1,tvly-key-2`
+
+`TAVILY_API_KEY` is also supported as a single-key fallback. When multiple keys are configured, the search client rotates through them and temporarily skips a key on Tavily auth/rate/quota errors.
 
 Run:
 
@@ -47,7 +50,8 @@ python main.py --mode pilot
 
 ## Repository Layout
 
-- `config/companies.json`: Generated from `GNEM_final_data.xlsx`. `query_families` is the only truth for company query selection.
+- `config/companies.json`: Generated from `GNEM_final_data.xlsx`; runtime source for dynamic company fields.
+- `config/web_query_catalog.json`: Final staged web query catalog, budgets, source priorities, and dynamic templates.
 - `config/seed_urls.json`: Seed hubs, documents, and search portals.
 - `config/domain_queries.json`: Domain-wide discovery queries.
 - `data/raw/`: Local raw document cache by content type.
@@ -61,6 +65,8 @@ python main.py --mode pilot
 - `pilot`: Full pipeline limited to the first `pilot_companies` companies by priority.
 - `seed-only`: Process seed URLs only.
 - `domain-only`: Run domain-wide search only.
+- `dry-run-queries --limit 5`: Print catalog-generated company and domain-wide queries without executing search/download.
+- `tavily-smoke-test --query "Georgia electric vehicle supply chain"`: Run one Tavily search without downloading or storing documents.
 - `single-company --company "Name"`: Run one company.
 - `retry-only`: Retry retryable download failures.
 - `resume`: Resume using the saved checkpoint unless `--fresh-start`.

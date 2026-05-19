@@ -12,4 +12,4 @@ region_name_env: "B2_REGION"
 access_key_env: "B2_ACCESS_KEY_ID"
 secret_key_env: "B2_SECRET_ACCESS_KEY"
 
-object_key_pattern: "{cloud_prefix}/{file_type}/{doc_id}_{company_slug}_{domain_slug}_{hash8}.{ext}"
+object_key_pattern: "{cloud_prefix}/{file_type}/{company_id}/{doc_id}_{domain_slug}_{content_hash12}.{ext}"

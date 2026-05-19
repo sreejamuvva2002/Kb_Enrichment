@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text, UniqueConstraint, create_engine
+from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text, UniqueConstraint, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from src import CONFIG_DIR, REPO_ROOT, iso_now, load_yaml
@@ -23,6 +23,8 @@ class Url(Base):
     normalized_url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     domain: Mapped[str | None] = mapped_column(String(255))
     url_type: Mapped[str | None] = mapped_column(String(50))
+    source_id: Mapped[str | None] = mapped_column(String(100))
+    company_id: Mapped[str | None] = mapped_column(String(255))
     doc_id: Mapped[str | None] = mapped_column(String(64))
     storage_backend: Mapped[str | None] = mapped_column(String(100))
     bucket_name: Mapped[str | None] = mapped_column(String(255))
@@ -38,12 +40,15 @@ class Url(Base):
     local_file_exists: Mapped[bool | None] = mapped_column(Boolean, default=False)
     local_deleted_at: Mapped[str | None] = mapped_column(String(19))
     final_url: Mapped[str | None] = mapped_column(Text)
+    canonical_url: Mapped[str | None] = mapped_column(Text)
     was_redirected: Mapped[bool | None] = mapped_column(Boolean, default=False)
     http_status: Mapped[int | None] = mapped_column(Integer)
     source_backend: Mapped[str | None] = mapped_column(String(100))
     first_discovered_at: Mapped[str | None] = mapped_column(String(19), default=iso_now)
     last_seen_at: Mapped[str | None] = mapped_column(String(19), default=iso_now)
     discovered_by_query: Mapped[str | None] = mapped_column(Text)
+    query_family: Mapped[str | None] = mapped_column(String(100))
+    query_stage: Mapped[int | None] = mapped_column(Integer)
     discovered_for_company: Mapped[str | None] = mapped_column(String(255))
     ddg_title: Mapped[str | None] = mapped_column(Text)
     ddg_snippet: Mapped[str | None] = mapped_column(Text)
@@ -61,9 +66,16 @@ class Url(Base):
     file_path: Mapped[str | None] = mapped_column(Text)
     file_size_mb: Mapped[float | None] = mapped_column(Float)
     is_extracted: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    processing_status: Mapped[str | None] = mapped_column(String(100))
     relevance_score: Mapped[float | None] = mapped_column(Float)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
     priority_domain: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    source_type: Mapped[str | None] = mapped_column(String(100))
+    source_priority: Mapped[int | None] = mapped_column(Integer)
+    retrieved_at: Mapped[str | None] = mapped_column(String(19))
+    published_date: Mapped[str | None] = mapped_column(String(64))
     blocked: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
 
 
@@ -73,6 +85,7 @@ class UrlCompanyMap(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     url: Mapped[str] = mapped_column(Text, nullable=False)
+    company_id: Mapped[str | None] = mapped_column(String(255))
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
     discovered_by_query: Mapped[str | None] = mapped_column(Text)
     discovered_at: Mapped[str | None] = mapped_column(String(19), default=iso_now)
@@ -85,7 +98,7 @@ class QueryConvergence(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
     query_text: Mapped[str] = mapped_column(Text, nullable=False)
-    query_family: Mapped[int | None] = mapped_column(Integer)
+    query_family: Mapped[str | None] = mapped_column(String(100))
     query_set_hash: Mapped[str | None] = mapped_column(String(64))
     temporal_variant: Mapped[str | None] = mapped_column(String(32))
     total_runs: Mapped[int] = mapped_column(Integer, default=0)
@@ -104,7 +117,7 @@ class QueryPerformance(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
     query_text: Mapped[str] = mapped_column(Text, nullable=False)
-    query_family: Mapped[int | None] = mapped_column(Integer)
+    query_family: Mapped[str | None] = mapped_column(String(100))
     run_count: Mapped[int] = mapped_column(Integer, default=0)
     total_urls_found: Mapped[int] = mapped_column(Integer, default=0)
     total_new_urls_found: Mapped[int] = mapped_column(Integer, default=0)
@@ -157,13 +170,63 @@ class RunRecord(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
 
+class WebDocument(Base):
+    __tablename__ = "web_documents"
+
+    source_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    doc_id: Mapped[str | None] = mapped_column(String(64), unique=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    final_url: Mapped[str | None] = mapped_column(Text)
+    canonical_url: Mapped[str | None] = mapped_column(Text)
+    domain: Mapped[str | None] = mapped_column(String(255))
+    query_used: Mapped[str | None] = mapped_column(Text)
+    query_family: Mapped[str | None] = mapped_column(String(100))
+    query_stage: Mapped[int | None] = mapped_column(Integer)
+    source_type: Mapped[str | None] = mapped_column(String(100))
+    source_priority: Mapped[int | None] = mapped_column(Integer)
+    retrieved_at: Mapped[str | None] = mapped_column(String(19))
+    published_date: Mapped[str | None] = mapped_column(String(64))
+    content_type: Mapped[str | None] = mapped_column(String(255))
+    file_type: Mapped[str | None] = mapped_column(String(32))
+    file_size_mb: Mapped[float | None] = mapped_column(Float)
+    content_hash: Mapped[str | None] = mapped_column(String(64))
+    b2_bucket: Mapped[str | None] = mapped_column(String(255))
+    b2_object_key: Mapped[str | None] = mapped_column(Text)
+    b2_uri: Mapped[str | None] = mapped_column(Text)
+    processing_status: Mapped[str | None] = mapped_column(String(100))
+    relevance_score: Mapped[float | None] = mapped_column(Float)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str | None] = mapped_column(String(19), default=iso_now)
+    updated_at: Mapped[str | None] = mapped_column(String(19), default=iso_now)
+
+
+class WebDocumentCompanyLink(Base):
+    __tablename__ = "web_document_company_links"
+    __table_args__ = (UniqueConstraint("source_id", "company_id", name="uq_web_doc_company"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    company_id: Mapped[str | None] = mapped_column(String(255))
+    company_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    link_type: Mapped[str | None] = mapped_column(String(100), default="discovered_for")
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[str | None] = mapped_column(String(19), default=iso_now)
+
+
 Index("ix_urls_normalized_url", Url.normalized_url)
+Index("ix_urls_company_id", Url.company_id)
 Index("ix_urls_doc_id", Url.doc_id)
+Index("ix_urls_canonical_url", Url.canonical_url)
+Index("ix_urls_query_family_stage", Url.query_family, Url.query_stage)
 Index("ix_urls_object_key", Url.object_key)
 Index("ix_urls_content_fingerprint", Url.content_fingerprint)
 Index("ix_urls_last_download_status", Url.last_download_status)
 Index("ix_url_company_map_company_name_url", UrlCompanyMap.company_name, UrlCompanyMap.url)
 Index("ix_query_convergence_company_name_is_converged", QueryConvergence.company_name, QueryConvergence.is_converged)
+Index("ix_web_documents_content_hash", WebDocument.content_hash)
+Index("ix_web_documents_b2_object_key", WebDocument.b2_object_key)
+Index("ix_web_doc_company_links_company_id", WebDocumentCompanyLink.company_id)
 
 _ENGINE = None
 _SESSION_FACTORY = None
@@ -176,7 +239,12 @@ def load_database_config() -> dict:
 def get_database_backend() -> str:
     config = load_database_config()
     database_url = os.getenv(config["database_url_env"])
-    return "postgres" if database_url else "sqlite"
+    if not database_url:
+        return "sqlite"
+    lowered = database_url.lower()
+    if lowered.startswith("sqlite"):
+        return "sqlite"
+    return "postgres"
 
 
 def _resolve_database_url() -> str:
@@ -240,8 +308,26 @@ def init_schema() -> None:
         table.create(bind=engine, checkfirst=True)
 
 
+def _add_missing_columns() -> None:
+    engine = get_engine()
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as connection:
+        for table in Base.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                continue
+            existing_columns = {column["name"] for column in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in existing_columns or column.primary_key:
+                    continue
+                compiled_type = column.type.compile(dialect=engine.dialect)
+                nullable = "" if column.nullable else " NOT NULL"
+                connection.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {compiled_type}{nullable}"))
+
+
 def run_migrations() -> None:
     init_schema()
+    _add_missing_columns()
 
 
 def close_connection() -> None:

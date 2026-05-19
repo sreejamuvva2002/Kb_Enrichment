@@ -64,6 +64,8 @@ def process_hub_page(
             blocked=False,
             priority_domain=False,
             source_backend="hub_extract",
+            query_family="hub_link_extract",
+            query_stage=3,
             url_type="document",
         )
         tracker.add_url_company_mapping(url, company_name, source_url)

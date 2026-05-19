@@ -1,0 +1,231 @@
+{
+  "version": "final_2026_05_18",
+  "default_state": "Georgia",
+  "default_state_abbrev": "GA",
+  "query_budgets": {
+    "yes": {"default": 30, "max": 40},
+    "indirect": {"default": 20, "max": 25},
+    "no": {"default": 8, "max": 10},
+    "unknown": {"default": 12, "max": 15}
+  },
+  "family_query_caps": {
+    "core_identity": 10,
+    "facility_location": 6,
+    "product_service": 5,
+    "ev_battery_relevance": 5,
+    "oem_relationship": 6,
+    "investment_jobs_capacity": 5,
+    "government_economic_development": 5,
+    "regulatory_permit": 6,
+    "parent_subsidiary": 4,
+    "news_recent_activity": 5
+  },
+  "temporal_variants": ["2022", "2023", "2024", "2025", "2026", "latest", "recent", "current"],
+  "source_priority_domains": {
+    "official_government": {
+      "priority": 2,
+      "domains": ["georgia.org", "gov.georgia.gov", "selectgeorgia.com", "energy.gov"]
+    },
+    "regional_development": {
+      "priority": 3,
+      "domains": ["savannahjda.com"]
+    },
+    "regulatory": {
+      "priority": 4,
+      "domains": ["permitsearch.gaepd.org", "epd.georgia.gov", "echo.epa.gov", "sec.gov", "usaspending.gov"]
+    },
+    "trade_news": {
+      "priority": 5,
+      "domains": ["autonews.com"]
+    },
+    "trade_database": {
+      "priority": 6,
+      "domains": ["importyeti.com", "marklines.com"]
+    }
+  },
+  "trusted_domains": [
+    "georgia.org",
+    "gov.georgia.gov",
+    "selectgeorgia.com",
+    "energy.gov",
+    "permitsearch.gaepd.org",
+    "epd.georgia.gov",
+    "echo.epa.gov",
+    "sec.gov",
+    "usaspending.gov",
+    "savannahjda.com"
+  ],
+  "trusted_news_or_trade_domains": ["autonews.com", "marklines.com", "importyeti.com"],
+  "relationship_terms": ["supplier", "supplies", "partnership", "contract", "component", "customer"],
+  "ev_terms": ["electric vehicle", "EV", "battery", "automotive electrification"],
+  "investment_terms": ["investment", "jobs", "expansion", "new facility", "plant capacity", "capital investment", "announcement"],
+  "regulatory_terms": ["permit", "EPD", "air permit", "environmental permit", "regulatory"],
+  "ownership_terms": ["parent company", "subsidiary", "acquisition", "corporate group"],
+  "minimum_content_bytes": 1024,
+  "stages": [
+    {
+      "stage": 1,
+      "name": "core",
+      "run": "always",
+      "families": [
+        {
+          "family": "core_identity",
+          "temporal": false,
+          "templates": [
+            {"template": "\"[COMPANY]\" \"[CITY]\" \"[STATE]\"", "required": ["COMPANY", "CITY", "STATE"]},
+            {"template": "\"[COMPANY_ALIAS]\" \"[CITY]\" \"[STATE]\"", "required": ["COMPANY_ALIAS", "CITY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[COUNTY]\" \"[STATE]\"", "required": ["COMPANY", "COUNTY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[ADDRESS]\"", "required": ["COMPANY", "ADDRESS"]},
+            {"template": "\"[COMPANY]\" \"[FACILITY_TYPE]\" \"[STATE]\"", "required": ["COMPANY", "FACILITY_TYPE", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[PRODUCT_SERVICE]\" \"[STATE]\"", "required": ["COMPANY", "PRODUCT_SERVICE", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[EV_ROLE]\" \"[STATE]\"", "required": ["COMPANY", "EV_ROLE", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[INDUSTRY_GROUP]\" \"[STATE]\"", "required": ["COMPANY", "INDUSTRY_GROUP", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" facility", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" operations", "required": ["COMPANY", "STATE"]}
+          ]
+        }
+      ]
+    },
+    {
+      "stage": 2,
+      "name": "gap_filling",
+      "run": "conditional",
+      "families": [
+        {
+          "family": "facility_location",
+          "trigger": "facility_gap",
+          "temporal": false,
+          "templates": [
+            {"template": "\"[COMPANY]\" \"[ADDRESS]\"", "required": ["COMPANY", "ADDRESS"]},
+            {"template": "\"[COMPANY_ALIAS]\" \"[ADDRESS]\"", "required": ["COMPANY_ALIAS", "ADDRESS"]},
+            {"template": "\"[COMPANY]\" \"[CITY]\" manufacturing plant", "required": ["COMPANY", "CITY"]},
+            {"template": "\"[COMPANY]\" \"[CITY]\" facility", "required": ["COMPANY", "CITY"]},
+            {"template": "\"[COMPANY]\" \"[COUNTY]\" facility", "required": ["COMPANY", "COUNTY"]},
+            {"template": "\"[COMPANY]\" \"[CITY]\" \"[COUNTY]\" operations", "required": ["COMPANY", "CITY", "COUNTY"]}
+          ]
+        },
+        {
+          "family": "product_service",
+          "trigger": "product_gap",
+          "temporal": false,
+          "templates": [
+            {"template": "\"[COMPANY]\" \"[PRODUCT_SERVICE]\"", "required": ["COMPANY", "PRODUCT_SERVICE"]},
+            {"template": "\"[COMPANY]\" \"[PRODUCT_SERVICE]\" \"[STATE]\"", "required": ["COMPANY", "PRODUCT_SERVICE", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[PRODUCT_SERVICE]\" manufacturing", "required": ["COMPANY", "PRODUCT_SERVICE"]},
+            {"template": "\"[COMPANY]\" \"[PRODUCT_SERVICE]\" supplier", "required": ["COMPANY", "PRODUCT_SERVICE"]},
+            {"template": "\"[COMPANY]\" \"[INDUSTRY_GROUP]\" products", "required": ["COMPANY", "INDUSTRY_GROUP"]}
+          ]
+        },
+        {
+          "family": "ev_battery_relevance",
+          "trigger": "ev_relevant",
+          "temporal": false,
+          "templates": [
+            {"template": "\"[COMPANY]\" \"[EV_ROLE]\" \"[STATE]\"", "required": ["COMPANY", "EV_ROLE", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[PRODUCT_SERVICE]\" electric vehicle", "required": ["COMPANY", "PRODUCT_SERVICE"]},
+            {"template": "\"[COMPANY]\" EV supply chain \"[STATE]\"", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" battery components \"[STATE]\"", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" automotive electrification \"[STATE]\"", "required": ["COMPANY", "STATE"]}
+          ]
+        },
+        {
+          "family": "oem_relationship",
+          "trigger": "primary_oems_present",
+          "temporal": false,
+          "templates": [
+            {"template": "\"[COMPANY]\" supplier \"[PRIMARY_OEM]\"", "required": ["COMPANY", "PRIMARY_OEM"]},
+            {"template": "\"[COMPANY]\" supplies \"[PRIMARY_OEM]\"", "required": ["COMPANY", "PRIMARY_OEM"]},
+            {"template": "\"[COMPANY]\" \"[PRIMARY_OEM]\" supplier", "required": ["COMPANY", "PRIMARY_OEM"]},
+            {"template": "\"[COMPANY]\" \"[PRIMARY_OEM]\" partnership", "required": ["COMPANY", "PRIMARY_OEM"]},
+            {"template": "\"[COMPANY]\" \"[PRIMARY_OEM]\" contract", "required": ["COMPANY", "PRIMARY_OEM"]},
+            {"template": "\"[COMPANY]\" \"[PRIMARY_OEM]\" component", "required": ["COMPANY", "PRIMARY_OEM"]}
+          ]
+        },
+        {
+          "family": "investment_jobs_capacity",
+          "trigger": "important_manufacturing",
+          "temporal": true,
+          "templates": [
+            {"template": "\"[COMPANY]\" \"[STATE]\" investment", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" jobs", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" expansion", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" new facility", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" plant capacity", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" capital investment", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" manufacturing announcement", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[COUNTY]\" economic development", "required": ["COMPANY", "COUNTY"]}
+          ]
+        },
+        {
+          "family": "government_economic_development",
+          "trigger": "important_manufacturing",
+          "temporal": false,
+          "templates": [
+            {"template": "\"[COMPANY]\" \"[STATE]\" economic development", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" governor announcement", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[COUNTY]\" development authority", "required": ["COMPANY", "COUNTY"]},
+            {"template": "\"[COMPANY]\" \"[CITY]\" development authority", "required": ["COMPANY", "CITY"]},
+            {"template": "\"[COMPANY]\" site:[TRUSTED_DOMAIN]", "required": ["COMPANY", "TRUSTED_DOMAIN"]}
+          ]
+        },
+        {
+          "family": "regulatory_permit",
+          "trigger": "regulatory_relevant",
+          "temporal": true,
+          "templates": [
+            {"template": "\"[COMPANY]\" \"[STATE]\" permit", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" EPD", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" air permit \"[STATE]\"", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" environmental permit \"[STATE]\"", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" site:permitsearch.gaepd.org", "required": ["COMPANY"]},
+            {"template": "\"[COMPANY]\" site:echo.epa.gov", "required": ["COMPANY"]},
+            {"template": "\"[COMPANY]\" site:sec.gov", "required": ["COMPANY"]},
+            {"template": "\"[COMPANY]\" site:energy.gov", "required": ["COMPANY"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" PDF", "required": ["COMPANY", "STATE"]}
+          ]
+        },
+        {
+          "family": "parent_subsidiary",
+          "trigger": "identity_ambiguous",
+          "temporal": false,
+          "templates": [
+            {"template": "\"[COMPANY]\" parent company", "required": ["COMPANY"]},
+            {"template": "\"[COMPANY]\" subsidiary", "required": ["COMPANY"]},
+            {"template": "\"[COMPANY]\" acquisition", "required": ["COMPANY"]},
+            {"template": "\"[COMPANY]\" corporate group", "required": ["COMPANY"]},
+            {"template": "\"[COMPANY]\" \"[ADDRESS_FRAGMENT]\"", "required": ["COMPANY", "ADDRESS_FRAGMENT"]},
+            {"template": "\"[COMPANY_ALIAS]\" subsidiary", "required": ["COMPANY_ALIAS"]}
+          ]
+        },
+        {
+          "family": "news_recent_activity",
+          "trigger": "freshness_required",
+          "temporal": true,
+          "templates": [
+            {"template": "\"[COMPANY]\" \"[STATE]\" news", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" press release", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" announcement", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[STATE]\" expansion news", "required": ["COMPANY", "STATE"]},
+            {"template": "\"[COMPANY]\" \"[CITY]\" manufacturing news", "required": ["COMPANY", "CITY"]},
+            {"template": "\"[COMPANY]\" site:[TRUSTED_NEWS_OR_TRADE_DOMAIN]", "required": ["COMPANY", "TRUSTED_NEWS_OR_TRADE_DOMAIN"]}
+          ]
+        }
+      ]
+    }
+  ],
+  "domain_wide_templates": [
+    {"template": "\"[STATE]\" electric vehicle supply chain investment", "required": ["STATE"]},
+    {"template": "\"[STATE]\" battery manufacturing plant announcement", "required": ["STATE"]},
+    {"template": "\"[STATE]\" EV supplier new facility announcement", "required": ["STATE"]},
+    {"template": "\"[STATE]\" automotive tier 1 supplier OEM", "required": ["STATE"]},
+    {"template": "\"[STATE]\" battery recycling supply chain", "required": ["STATE"]},
+    {"template": "\"[STATE]\" EV job creation announcement economic development", "required": ["STATE"]},
+    {"template": "\"[STATE]\" air permit battery manufacturing", "required": ["STATE"]},
+    {"template": "\"[STATE]\" battery materials manufacturing", "required": ["STATE"]},
+    {"template": "\"[STATE]\" cathode anode electrolyte separator supplier", "required": ["STATE"]},
+    {"template": "\"[STATE]\" EV charging infrastructure manufacturing", "required": ["STATE"]},
+    {"template": "\"[STATE]\" \"[OEM_ANCHOR]\" supplier announcement", "required": ["STATE", "OEM_ANCHOR"]},
+    {"template": "\"[STATE]\" \"[OEM_ANCHOR]\" component supplier", "required": ["STATE", "OEM_ANCHOR"]},
+    {"template": "\"[STATE]\" \"[OEM_ANCHOR]\" battery supplier", "required": ["STATE", "OEM_ANCHOR"]}
+  ]
+}

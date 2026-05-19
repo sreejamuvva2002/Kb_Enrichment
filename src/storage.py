@@ -38,6 +38,12 @@ def _slugify_domain(url: str) -> str:
     return cleaned[:20]
 
 
+def _slugify_identifier(value: str | None, fallback: str = "unlinked") -> str:
+    base = (value or fallback).lower().replace(" ", "_")
+    cleaned = "".join(ch for ch in base if ch.isalnum() or ch in {"_", "-"})
+    return (cleaned.strip("_-") or fallback)[:64]
+
+
 def _sanitize_metadata(metadata: dict[str, str] | None) -> dict[str, str]:
     sanitized: dict[str, str] = {}
     for key, value in (metadata or {}).items():
@@ -76,17 +82,29 @@ class StorageManager:
     def bucket_name(self) -> str:
         return self._get_env("bucket_name_env")
 
-    def build_object_key(self, doc_id: str, company_name: str | None, url: str, ext: str) -> str:
+    def build_object_key(
+        self,
+        doc_id: str,
+        company_name: str | None,
+        url: str,
+        ext: str,
+        *,
+        company_id: str | None = None,
+        content_hash: str | None = None,
+    ) -> str:
         pattern = self.config["object_key_pattern"]
         url_hash = hashlib.md5(url.encode("utf-8")).hexdigest()[:8]
+        content_hash12 = (content_hash or url_hash)[:12]
         extension = ext.lstrip(".") or "bin"
         return pattern.format(
             cloud_prefix=self.config["cloud_prefix"].strip("/"),
             file_type=extension,
             doc_id=doc_id,
+            company_id=_slugify_identifier(company_id),
             company_slug=_slugify_company(company_name),
             domain_slug=_slugify_domain(url),
             hash8=url_hash,
+            content_hash12=content_hash12,
             ext=extension,
         )
 
@@ -188,8 +206,23 @@ def get_storage_client():
     return StorageManager().get_storage_client()
 
 
-def build_object_key(doc_id: str, company_name: str | None, url: str, ext: str) -> str:
-    return StorageManager().build_object_key(doc_id, company_name, url, ext)
+def build_object_key(
+    doc_id: str,
+    company_name: str | None,
+    url: str,
+    ext: str,
+    *,
+    company_id: str | None = None,
+    content_hash: str | None = None,
+) -> str:
+    return StorageManager().build_object_key(
+        doc_id,
+        company_name,
+        url,
+        ext,
+        company_id=company_id,
+        content_hash=content_hash,
+    )
 
 
 def upload_file(local_path: str | Path, object_key: str, metadata: dict[str, str] | None = None) -> dict[str, Any]:

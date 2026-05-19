@@ -25,11 +25,14 @@ from src.framework_updater import (
 )
 from src.link_extractor import process_hub_page
 from src.searcher import (
+    build_query_bundle,
     collect_domain_wide,
     collect_for_company,
+    generate_domain_queries,
     generate_search_portal_url_records,
     load_companies,
     load_seed_urls,
+    search_tavily,
 )
 from src.storage import StorageManager
 from src.tracker import DOMAIN_WIDE_COMPANY, Tracker
@@ -55,15 +58,20 @@ def parse_args() -> argparse.Namespace:
             "verify-storage",
             "export-duckdb",
             "retrieve-doc",
+            "dry-run-queries",
+            "tavily-smoke-test",
         ],
     )
     parser.add_argument("--company", help="Company name for single-company mode.")
     parser.add_argument("--pilot-count", type=int, help="Override the configured pilot company count.")
+    parser.add_argument("--limit", type=int, help="Limit company count for testing.")
+    parser.add_argument("--include-fresh", action="store_true", help="Include Stage 5/latest-style company queries when generating query bundles.")
     parser.add_argument("--run-id", help="Explicit run identifier.")
     parser.add_argument("--fresh-start", action="store_true", help="Ignore any existing checkpoint.")
     parser.add_argument("--doc-id", help="Document ID for retrieve-doc mode.")
     parser.add_argument("--object-key", help="Object key for retrieve-doc mode.")
     parser.add_argument("--target-path", help="Target path for retrieve-doc mode.")
+    parser.add_argument("--query", help="Query text for tavily-smoke-test mode.")
     return parser.parse_args()
 
 
@@ -96,9 +104,16 @@ def enrich_result(result: dict[str, Any], tracker: Tracker, run_id: str, context
     record = tracker.get_url_record(result["url"]) or {}
     enriched = dict(result)
     enriched["relevance_score"] = record.get("relevance_score")
+    enriched["confidence_score"] = record.get("confidence_score")
     enriched["priority_domain"] = record.get("priority_domain")
     enriched["ddg_title"] = record.get("ddg_title")
     enriched["ddg_snippet"] = record.get("ddg_snippet")
+    enriched["query_used"] = record.get("discovered_by_query")
+    enriched["query_family"] = record.get("query_family")
+    enriched["query_stage"] = record.get("query_stage")
+    enriched["source_type"] = record.get("source_type")
+    enriched["source_priority"] = record.get("source_priority")
+    enriched["rejection_reason"] = record.get("rejection_reason")
     enriched["run_id"] = run_id
     for key in ("source_name", "category", "sub_category", "url_type"):
         if context.get(key) is not None:
@@ -145,7 +160,13 @@ def download_entries(
     for batch in chunked(entries, batch_size):
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {
-                executor.submit(downloader.download_url, item["url"], item.get("company_name"), item.get("doc_id")): item
+                executor.submit(
+                    downloader.download_url,
+                    item["url"],
+                    item.get("company_name"),
+                    item.get("doc_id"),
+                    item.get("company_id"),
+                ): item
                 for item in batch
             }
             for future in as_completed(future_map):
@@ -195,14 +216,18 @@ def prepare_seed_entries(tracker: Tracker, companies: list[dict[str, Any]]) -> t
                     priority_domain=True,
                     url_type="search_portal",
                     source_backend="seed_search_portal",
+                    company_id=record.get("company_id"),
+                    query_stage=3,
+                    query_family="structured_portal",
                     notes=f"Generated from {seed['source_name']}",
                 )
-                tracker.add_url_company_mapping(record["url"], record["company_name"], seed["url"])
+                tracker.add_url_company_mapping(record["url"], record["company_name"], seed["url"], record.get("company_id"))
                 if not tracker.is_seed_url_within_gap(record["url"]):
                     search_portal_entries.append(
                         {
                             "url": record["url"],
                             "company_name": record["company_name"],
+                            "company_id": record.get("company_id"),
                             "source_name": seed["source_name"],
                             "category": seed["category"],
                             "sub_category": seed["sub_category"],
@@ -240,14 +265,16 @@ def selected_companies(mode: str, args: argparse.Namespace, settings: dict[str, 
     companies = load_companies()
     if mode == "pilot":
         pilot_count = args.pilot_count or int(settings["pilot_companies"])
-        return companies[: pilot_count]
+        companies = companies[: pilot_count]
     if mode == "single-company":
         if not args.company:
             raise ValueError("--company is required for single-company mode.")
         filtered = [row for row in companies if row["company_name"].lower() == args.company.lower()]
         if not filtered:
             raise ValueError(f"Company not found: {args.company}")
-        return filtered
+        companies = filtered
+    if args.limit:
+        companies = companies[: args.limit]
     return companies
 
 
@@ -308,24 +335,25 @@ def run_pipeline(args: argparse.Namespace) -> None:
                     continue
                 try:
                     projected_bundle_hash = None
-                    bundle_preview = __import__("src.searcher", fromlist=["build_query_bundle"]).build_query_bundle(company)
+                    bundle_preview = build_query_bundle(company, include_fresh=args.include_fresh)
                     if bundle_preview:
                         projected_bundle_hash = tracker.compute_query_set_hash(
                             bundle_preview,
-                            {
-                                "temporal_families": [3, 6, 7, 8],
-                                "variants": ["yearless", "2022", "2023", "2024", "2025", "2026", "latest", "recent", "current"],
-                                "yearless_first": True,
-                            },
+                            {"catalog": "web_query_catalog", "include_fresh": args.include_fresh},
                         )
                     company_convergence = tracker.get_company_convergence_record(company["company_name"])
                     if company_convergence and company_convergence["all_converged"] and company_convergence["query_set_hash"] == projected_bundle_hash:
                         LOGGER.info("Skipping converged company: %s", company["company_name"])
                         processed_companies.append(company["company_name"])
                         continue
-                    collected = collect_for_company(company, tracker, run_id)
+                    collected = collect_for_company(company, tracker, run_id, include_fresh=args.include_fresh)
                     discovered_entries = [
-                        {"url": url, "company_name": company["company_name"], "url_type": "document"}
+                        {
+                            "url": url,
+                            "company_name": company["company_name"],
+                            "company_id": company.get("company_id") or company.get("id"),
+                            "url_type": "document",
+                        }
                         for url in collected["discovered_urls"]
                     ]
                     stats["new_urls_found"] += len(discovered_entries)
@@ -477,6 +505,58 @@ def run_retrieve_doc(args: argparse.Namespace) -> None:
         tracker.close()
 
 
+def run_dry_run_queries(args: argparse.Namespace) -> None:
+    settings = load_yaml(CONFIG_DIR / "settings.yaml")
+    companies = selected_companies("full" if args.mode == "dry-run-queries" else args.mode, args, settings)
+    total_queries = 0
+    total_skipped = 0
+    for company in companies:
+        from src.query_catalog import generate_company_queries, load_web_query_catalog
+
+        catalog = load_web_query_catalog()
+        generated, skipped = generate_company_queries(
+            company,
+            catalog,
+            include_fresh=args.include_fresh,
+            max_results=int(settings["ddg_max_results_standard_families"]),
+        )
+        total_queries += len(generated)
+        total_skipped += len(skipped)
+        print(f"\n{company['company_name']}: generated={len(generated)} skipped={len(skipped)}")
+        for query in generated:
+            print(f"  stage={query.stage} family={query.family} query={query.query_text}")
+        skipped_reasons: dict[str, int] = {}
+        for item in skipped:
+            skipped_reasons[item.reason] = skipped_reasons.get(item.reason, 0) + 1
+        if skipped_reasons:
+            print("  skipped_reasons=" + json.dumps(skipped_reasons, sort_keys=True))
+    domain_queries, domain_skipped = generate_domain_queries(
+        companies,
+        max_results=int(settings["ddg_max_results_high_value_families"]),
+    )
+    print(f"\nDomain-wide: generated={len(domain_queries)} skipped={len(domain_skipped)}")
+    for query in domain_queries:
+        print(f"  stage={query.stage} family={query.family} query={query.query_text}")
+    print(f"\nTotals: company_queries={total_queries} company_skipped={total_skipped} domain_queries={len(domain_queries)}")
+
+
+def run_tavily_smoke_test(args: argparse.Namespace) -> None:
+    query = args.query or '"Georgia" electric vehicle supply chain investment'
+    settings = load_yaml(CONFIG_DIR / "settings.yaml")
+    max_results = min(3, int(settings.get("tavily_max_results", 10)))
+    try:
+        results = search_tavily(query, max_results)
+    except RuntimeError as exc:
+        if "No Tavily API keys configured" in str(exc):
+            raise RuntimeError("No Tavily API keys configured. Add TAVILY_API_KEYS to .env as a comma-separated list.") from exc
+        raise
+    print(f"Tavily smoke test query: {query}")
+    print(f"Results: {len(results)}")
+    for index, result in enumerate(results[:max_results], start=1):
+        print(f"{index}. {result.get('title') or '(untitled)'}")
+        print(f"   {result.get('url')}")
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
     load_dotenv()
@@ -492,6 +572,12 @@ def main() -> None:
         return
     if args.mode == "retrieve-doc":
         run_retrieve_doc(args)
+        return
+    if args.mode == "dry-run-queries":
+        run_dry_run_queries(args)
+        return
+    if args.mode == "tavily-smoke-test":
+        run_tavily_smoke_test(args)
         return
     run_pipeline(args)
 
