@@ -1,0 +1,233 @@
+{
+  "version": "1.0",
+  "description": "Wiki schema defines entity types, properties, and extraction rules for local LLM synthesis",
+  "entity_types": [
+    {
+      "type": "company",
+      "properties": [
+        "name",
+        "aliases",
+        "industry",
+        "location",
+        "headquarters",
+        "founded_year",
+        "website",
+        "parent_company",
+        "subsidiaries"
+      ],
+      "relations": ["owns", "supplies", "partners_with", "acquires"],
+      "extraction_priority": "high"
+    },
+    {
+      "type": "facility",
+      "properties": [
+        "name",
+        "owner_company",
+        "location_city",
+        "location_county",
+        "location_state",
+        "address",
+        "facility_type",
+        "capacity",
+        "products",
+        "employees",
+        "operational_status"
+      ],
+      "extraction_priority": "high"
+    },
+    {
+      "type": "investment",
+      "properties": [
+        "announced_date",
+        "company_involved",
+        "location",
+        "amount_usd",
+        "jobs_created",
+        "project_description",
+        "source",
+        "confidence_level"
+      ],
+      "extraction_priority": "high"
+    },
+    {
+      "type": "permit",
+      "properties": [
+        "facility_name",
+        "permit_type",
+        "permit_number",
+        "issued_date",
+        "expiration_date",
+        "issuing_agency",
+        "status"
+      ],
+      "extraction_priority": "medium"
+    },
+    {
+      "type": "relationship",
+      "properties": [
+        "subject_company",
+        "relationship_type",
+        "object_company",
+        "description",
+        "strength"
+      ],
+      "extraction_priority": "medium"
+    }
+  ],
+  "relationship_types": [
+    {
+      "type": "supplier_of",
+      "reverse": "has_supplier",
+      "description": "Company A supplies parts/materials to Company B"
+    },
+    {
+      "type": "customer_of",
+      "reverse": "has_customer",
+      "description": "Company A is a customer of Company B"
+    },
+    {
+      "type": "parent_of",
+      "reverse": "subsidiary_of",
+      "description": "Company A owns Company B"
+    },
+    {
+      "type": "partner_with",
+      "reverse": "partner_with",
+      "description": "Company A has a partnership with Company B"
+    },
+    {
+      "type": "invested_in",
+      "reverse": "received_investment_from",
+      "description": "Entity A invested in Entity B"
+    }
+  ],
+  "extraction_rules": {
+    "company": {
+      "keywords": [
+        "company",
+        "corporation",
+        "manufacturer",
+        "supplier",
+        "facility",
+        "plant",
+        "OEM",
+        "automotive",
+        "battery",
+        "EV"
+      ],
+      "min_confidence": 0.7,
+      "always_extract": [
+        "company_names_in_title",
+        "geographic_locations",
+        "investment_amounts",
+        "job_creation"
+      ]
+    },
+    "facility": {
+      "keywords": [
+        "facility",
+        "plant",
+        "factory",
+        "manufacturing",
+        "location",
+        "site",
+        "campus"
+      ],
+      "min_confidence": 0.6,
+      "always_extract": [
+        "location_details",
+        "capacity_numbers",
+        "facility_type"
+      ]
+    },
+    "investment": {
+      "keywords": [
+        "investment",
+        "expansion",
+        "new facility",
+        "jobs",
+        "capital",
+        "funding",
+        "announcement",
+        "million",
+        "billion"
+      ],
+      "min_confidence": 0.8,
+      "always_extract": [
+        "monetary_amounts",
+        "job_numbers",
+        "dates",
+        "locations"
+      ]
+    }
+  },
+  "wiki_structure": {
+    "companies": {
+      "description": "Company profiles with operations, investments, relationships",
+      "sections": [
+        "Overview",
+        "Key Facts",
+        "Location",
+        "Facilities",
+        "Products/Services",
+        "Investments",
+        "Relationships",
+        "News",
+        "Sources"
+      ]
+    },
+    "facilities": {
+      "description": "Individual manufacturing and operational facilities",
+      "sections": [
+        "Overview",
+        "Location",
+        "Owner Company",
+        "Facility Type",
+        "Capacity",
+        "Products",
+        "Employment",
+        "Permits",
+        "Investment History",
+        "Sources"
+      ]
+    },
+    "investments": {
+      "description": "Major investments, expansions, and announcements",
+      "sections": [
+        "Overview",
+        "Amount",
+        "Date",
+        "Location",
+        "Company",
+        "Jobs Impact",
+        "Project Details",
+        "Status",
+        "Sources"
+      ]
+    },
+    "relationships": {
+      "description": "Supply chain and business relationships",
+      "sections": [
+        "Overview",
+        "Companies Involved",
+        "Relationship Type",
+        "Details",
+        "Evidence",
+        "Sources"
+      ]
+    }
+  },
+  "llm_settings": {
+    "model": "mistral",
+    "context_window": 2048,
+    "temperature": 0.3,
+    "chunk_size": 800,
+    "chunk_overlap": 100,
+    "extraction_prompt_style": "structured_json"
+  },
+  "fallback_strategies": {
+    "extraction_failure": "use_heuristic_regex",
+    "low_confidence": "mark_for_review",
+    "missing_fields": "infer_from_context"
+  }
+}
